@@ -1,0 +1,8 @@
+# Ignorer le cache Chrome
+chrome_profile/
+
+# Dossiers courants à ignorer
+node_modules/
+dist/
+.env
+.DS_Store
