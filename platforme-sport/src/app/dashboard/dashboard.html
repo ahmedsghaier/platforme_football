@@ -1,0 +1,516 @@
+<!-- dashboard.component.html - Version corrigée avec authentification -->
+<div class="min-h-screen bg-gray-50">
+  <!-- Message d'authentification requis -->
+  <div *ngIf="!isAuthenticated" class="min-h-screen flex items-center justify-center bg-gray-50">
+    <div class="max-w-md w-full mx-4">
+      <div class="bg-white rounded-xl shadow-sm p-8 text-center">
+        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i class="ri-lock-line text-blue-600 text-2xl"></i>
+        </div>
+        <h2 class="text-xl font-semibold text-gray-900 mb-2">Authentification requise</h2>
+        <p class="text-gray-600 mb-6">Vous devez être connecté pour accaéder au tableau de bord.</p>
+        <button (click)="navigateToLogin()" 
+                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          Se connecter
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenu principal (seulement si authentifié) -->
+  <div *ngIf="isAuthenticated">
+    <!-- Header avec informations utilisateur -->
+    <header class="bg-white shadow-sm border-b">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <a (click)="navigateToHome()" class="text-2xl font-bold text-blue-600 cursor-pointer" style="font-family: 'Pacifico', serif">
+            FootballAI
+          </a>
+          <nav class="flex items-center space-x-6">
+            <a (click)="navigateToSearch()" class="text-gray-600 hover:text-blue-600 transition-colors cursor-pointer">Recherche</a>
+            <a (click)="navigateToCompare()" class="text-gray-600 hover:text-blue-600 transition-colors cursor-pointer">Comparateur</a>
+            <a class="text-blue-600 font-medium cursor-pointer">Tableau de bord</a>
+            
+            <!-- Indicateur de statut de connexion -->
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1">
+                <div [class]="'w-2 h-2 rounded-full ' + (serverConnectionStatus === 'connected' ? 'bg-green-400' : serverConnectionStatus === 'disconnected' ? 'bg-red-400' : 'bg-yellow-400')"></div>
+                <span [class]="'text-xs ' + connectionStatusClass">{{connectionStatusText}}</span>
+              </div>
+            </div>
+            
+            <!-- Menu utilisateur -->
+            <div class="relative group">
+              <div class="flex items-center gap-2 cursor-pointer">
+                <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                  <i class="ri-user-line text-white text-sm"></i>
+                </div>
+                <span class="text-gray-700 font-medium">{{userDisplayName}}</span>
+                <i class="ri-arrow-down-s-line text-gray-400"></i>
+              </div>
+              
+              <!-- Menu déroulant -->
+              <div class="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                <div class="py-2">
+                  <div class="px-4 py-2 border-b">
+                    <p class="text-sm font-medium text-gray-900">{{currentUser?.name}}</p>
+                    <p class="text-xs text-gray-500">{{currentUser?.email}}</p>
+                    <span class="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded">{{currentUser?.accountType}}</span>
+                  </div>
+                  <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Profil</a>
+                  <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Paramètres</a>
+                  <div class="border-t">
+                    <button (click)="logout()" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                      <i class="ri-logout-box-line mr-2"></i>
+                      Déconnexion
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <!-- Messages d'erreur/avertissement -->
+    <div *ngIf="errorMessage" class="bg-red-50 border-l-4 border-red-400 p-4 m-4">
+      <div class="flex items-center justify-between">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <i class="ri-error-warning-line text-red-400"></i>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm text-red-700">{{errorMessage}}</p>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button (click)="retryLoadData()" class="text-red-600 hover:text-red-800 text-sm font-medium">Réessayer</button>
+          <button (click)="clearMessages()" class="text-red-400 hover:text-red-600">
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="warningMessage && !errorMessage" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 m-4">
+      <div class="flex items-center justify-between">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <i class="ri-alert-line text-yellow-400"></i>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm text-yellow-700">{{warningMessage}}</p>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button *ngIf="isOfflineMode" (click)="reconnectToServer()" class="text-yellow-600 hover:text-yellow-800 text-sm font-medium">Reconnecter</button>
+          <button (click)="clearMessages()" class="text-yellow-400 hover:text-yellow-600">
+            <i class="ri-close-line"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Welcome Section avec actions de rafraîchissement -->
+      <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl text-white p-8 mb-8">
+        <div class="flex justify-between items-center">
+          <div>
+            <h1 class="text-3xl font-bold mb-2">Bonjour {{userDisplayName}} 👋</h1>
+            <p class="text-blue-100 text-lg">
+              <span *ngIf="!isOfflineMode">Voici un résumé de vos activités et analyses récentes</span>
+              <span *ngIf="isOfflineMode">Mode hors ligne - Fonctionnalités limitées</span>
+            </p>
+          </div>
+          <div class="flex gap-2">
+            <button *ngIf="!isLoading && canPerformServerAction()" 
+                    (click)="refreshData()" 
+                    [disabled]="isRefreshing"
+                    class="px-4 py-2 bg-blue-500 hover:bg-blue-400 rounded-lg transition-colors disabled:opacity-50">
+              <i class="ri-refresh-line" [class.animate-spin]="isRefreshing"></i>
+              <span class="ml-2">{{isRefreshing ? 'Actualisation...' : 'Actualiser'}}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Indicateur de chargement -->
+      <div *ngIf="isLoading" class="flex justify-center items-center py-12">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-gray-600">Chargement des données...</span>
+        </div>
+      </div>
+
+      <!-- Stats Overview (dynamiques) -->
+      <div *ngIf="!isLoading && hasMinimalData" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Recherches ce mois -->
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-600 text-sm">Recherches ce mois</p>
+              <p class="text-3xl font-bold text-gray-900">{{stats?.searchesThisMonth || 0}}</p>
+            </div>
+            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <i class="ri-search-line text-blue-600 text-xl"></i>
+            </div>
+          </div>
+          <div class="flex items-center mt-4 text-sm" *ngIf="stats?.searchGrowthPercentage !== undefined">
+            <i *ngIf="stats" [class]="'mr-1 ' + formatGrowthWithColor(stats.searchGrowthPercentage).icon + ' ' + formatGrowthWithColor(stats.searchGrowthPercentage).color"></i>
+            <span *ngIf="stats" [class]="formatGrowthWithColor(stats.searchGrowthPercentage).color">{{formatGrowthWithColor(stats.searchGrowthPercentage).text}}</span>
+            <span *ngIf="stats" class="text-gray-500 ml-2">vs mois dernier</span>
+          </div>
+        </div>
+
+        <!-- Joueurs favoris -->
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-600 text-sm">Joueurs favoris</p>
+              <p class="text-3xl font-bold text-gray-900">{{stats?.favoritePlayers || 0}}</p>
+            </div>
+            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <i class="ri-heart-line text-green-600 text-xl"></i>
+            </div>
+          </div>
+          <div class="flex items-center mt-4 text-sm" *ngIf="stats?.favoritePlayersAddedThisWeek !== undefined">
+            <i class="ri-arrow-up-line text-green-600 mr-1"></i>
+            <span class="text-green-600">+{{stats?.favoritePlayersAddedThisWeek}}</span>
+            <span class="text-gray-500 ml-2">cette semaine</span>
+          </div>
+        </div>
+
+        <!-- Comparaisons -->
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-600 text-sm">Comparaisons</p>
+              <p class="text-3xl font-bold text-gray-900">{{stats?.comparisons || 0}}</p>
+            </div>
+            <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <i class="ri-contrast-line text-purple-600 text-xl"></i>
+            </div>
+          </div>
+          <div class="flex items-center mt-4 text-sm" *ngIf="stats?.comparisonGrowthPercentage !== undefined">
+            <i *ngIf="stats" [class]="'mr-1 ' + formatGrowthWithColor(stats.comparisonGrowthPercentage).icon + ' ' + formatGrowthWithColor(stats.comparisonGrowthPercentage).color"></i>
+            <span *ngIf="stats" [class]="formatGrowthWithColor(stats.comparisonGrowthPercentage).color">{{formatGrowthWithColor(stats.comparisonGrowthPercentage).text}}</span>
+            <span *ngIf="stats" class="text-gray-500 ml-2">vs mois dernier</span>
+          </div>
+        </div>
+
+        <!-- Rapports exportés -->
+        <div class="bg-white rounded-xl p-6 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-gray-600 text-sm">Rapports exportés</p>
+              <p class="text-3xl font-bold text-gray-900">{{stats?.reportsExported || 0}}</p>
+            </div>
+            <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+              <i class="ri-download-line text-orange-600 text-xl"></i>
+            </div>
+          </div>
+          <div class="flex items-center mt-4 text-sm" *ngIf="stats?.reportsExportedThisWeek !== undefined">
+            <i class="ri-arrow-up-line text-green-600 mr-1"></i>
+            <span class="text-green-600">+{{stats?.reportsExportedThisWeek}}</span>
+            <span class="text-gray-500 ml-2">cette semaine</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message quand aucune donnée n'est disponible -->
+      <div *ngIf="!isLoading && !hasMinimalData" class="text-center py-12">
+        <div class="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i class="ri-database-line text-gray-400 text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">Aucune donnée disponible</h3>
+        <p class="text-gray-500 mb-4">Les données du dashboard ne peuvent pas être chargées pour le moment.</p>
+        <button (click)="retryLoadData()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          Réessayer
+        </button>
+      </div>
+
+      <!-- Main Content -->
+      <div *ngIf="!isLoading && hasMinimalData" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Left Column -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Recent Searches (dynamiques) -->
+          <div class="bg-white rounded-xl shadow-sm">
+            <div class="p-6 border-b border-gray-200">
+              <div class="flex justify-between items-center">
+                <h2 class="text-xl font-semibold text-gray-900">Recherches récentes</h2>
+                <span class="text-sm text-gray-500">{{recentSearches?.length || 0}} recherche(s)</span>
+              </div>
+            </div>
+            <div class="p-6">
+              <div *ngIf="recentSearches && recentSearches.length > 0; else noRecentSearches" class="space-y-4">
+                <div *ngFor="let search of recentSearches; trackBy: trackBySearchDate" 
+                     class="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                     (click)="viewPlayerDetails(search.playerName, search.playerId)">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                      <i class="ri-user-line text-gray-500"></i>
+                    </div>
+                    <div>
+                      <h3 class="font-medium text-gray-900">{{search.playerName}}</h3>
+                      <p class="text-sm text-gray-500">{{search.club}}</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-sm text-gray-500">{{search.date}}</p>
+                    <button class="text-blue-600 hover:text-blue-700 text-sm">
+                      Voir détails
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <ng-template #noRecentSearches>
+                <div class="text-center py-8">
+                  <i class="ri-search-line text-gray-400 text-3xl mb-3"></i>
+                  <p class="text-gray-500 mb-4">Aucune recherche récente</p>
+                  <button (click)="navigateToSearch()" class="text-blue-600 hover:text-blue-700 font-medium">
+                    Effectuer une recherche
+                  </button>
+                </div>
+              </ng-template>
+              <div *ngIf="recentSearches && recentSearches.length > 0" class="mt-6 text-center">
+                <a (click)="navigateToSearch()" class="text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
+                  Voir toutes les recherches →
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Market Trends (dynamiques) -->
+          <div class="bg-white rounded-xl shadow-sm">
+            <div class="p-6 border-b border-gray-200">
+              <div class="flex justify-between items-center">
+                <h2 class="text-xl font-semibold text-gray-900">Tendances du marché</h2>
+                <span *ngIf="!hasPositiveTrends" class="text-sm text-gray-500">Pas de tendances positives</span>
+              </div>
+            </div>
+            <div class="p-6">
+              <div *ngIf="marketTrends; else noMarketTrends" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="text-center">
+                  <div [class]="'text-3xl font-bold mb-2 ' + formatGrowthWithColor(marketTrends.attackersGrowth).color">
+                    {{formatGrowthWithColor(marketTrends.attackersGrowth).text}}
+                  </div>
+                  <p class="text-gray-600">Attaquants</p>
+                </div>
+                <div class="text-center">
+                  <div [class]="'text-3xl font-bold mb-2 ' + formatGrowthWithColor(marketTrends.midfieldersGrowth).color">
+                    {{formatGrowthWithColor(marketTrends.midfieldersGrowth).text}}
+                  </div>
+                  <p class="text-gray-600">Milieux créatifs</p>
+                </div>
+                <div class="text-center">
+                  <div [class]="'text-3xl font-bold mb-2 ' + formatGrowthWithColor(marketTrends.youngTalentsGrowth).color">
+                    {{formatGrowthWithColor(marketTrends.youngTalentsGrowth).text}}
+                  </div>
+                  <p class="text-gray-600">Jeunes talents</p>
+                </div>
+                <div class="text-center">
+                  <div [class]="'text-3xl font-bold mb-2 ' + formatGrowthWithColor(marketTrends.defendersGrowth).color">
+                    {{formatGrowthWithColor(marketTrends.defendersGrowth).text}}
+                  </div>
+                  <p class="text-gray-600">Défenseurs centraux</p>
+                </div>
+              </div>
+              <ng-template #noMarketTrends>
+                <div class="text-center py-8">
+                  <i class="ri-line-chart-line text-gray-400 text-3xl mb-3"></i>
+                  <p class="text-gray-500">Données de marché indisponibles</p>
+                </div>
+              </ng-template>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="space-y-6">
+          <!-- Favorite Players (dynamiques) -->
+          <div class="bg-white rounded-xl shadow-sm">
+            <div class="p-6 border-b border-gray-200">
+              <div class="flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">Joueurs favoris</h2>
+                <span class="text-sm text-gray-500">{{favoritePlayers?.length || 0}}</span>
+              </div>
+            </div>
+            <div class="p-6">
+              <div *ngIf="favoritePlayers && favoritePlayers.length > 0; else noFavoritePlayers" class="space-y-4">
+                <div *ngFor="let player of favoritePlayers; trackBy: trackByPlayerName" 
+                     class="flex items-center justify-between group hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                      <i class="ri-user-line text-gray-500 text-sm"></i>
+                    </div>
+                    <div>
+                      <h3 class="font-medium text-gray-900 text-sm">{{player.name}}</h3>
+                      <p class="text-xs text-gray-500">{{player.club}}</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <p class="font-semibold text-gray-900 text-sm">{{player.value}}</p>
+                    <p [class]="'text-xs ' + formatGrowthWithColor(player.trend ? +(player.trend.replace('%', '')) : 0).color">
+                      {{ player.trend }}
+                    </p>
+                  </div>
+                  <button *ngIf="canPerformServerAction()" 
+                          (click)="toggleFavoritePlayer(player.name, player.playerId); $event.stopPropagation()" 
+                          class="ml-2 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity">
+                    <i class="ri-heart-fill text-sm"></i>
+                  </button>
+                </div>
+              </div>
+              <ng-template #noFavoritePlayers>
+                <div class="text-center py-6">
+                  <i class="ri-heart-line text-gray-400 text-2xl mb-2"></i>
+                  <p class="text-gray-500 text-sm mb-3">Aucun joueur favori</p>
+                  <button (click)="navigateToSearch()" class="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                    Découvrir des joueurs
+                  </button>
+                </div>
+              </ng-template>
+            </div>
+          </div>
+
+          <!-- Alerts (dynamiques) -->
+          <div class="bg-white rounded-xl shadow-sm">
+            <div class="p-6 border-b border-gray-200">
+              <div class="flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">Alertes personnalisées</h2>
+                <span *ngIf="unreadAlertsCount > 0" class="px-2 py-1 bg-red-100 text-red-600 text-xs rounded-full">
+                  {{unreadAlertsCount}}
+                </span>
+              </div>
+            </div>
+            <div class="p-6">
+              <div *ngIf="alerts && alerts.length > 0; else noAlerts" class="space-y-4">
+                <div *ngFor="let alert of alerts; trackBy: trackByAlertTime" 
+                     class="flex gap-3 hover:bg-gray-50 p-2 rounded-lg cursor-pointer transition-colors"
+                     (click)="markAlertAsViewed(alert)">
+                  <div [class]="'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ' + getAlertBackgroundClass(alert.type)">
+                    <i [class]="'text-sm ' + getAlertIconClass(alert.type)"></i>
+                  </div>
+                  <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-900">{{alert.player}}</p>
+                    <p class="text-xs text-gray-600">{{alert.message}}</p>
+                    <p class="text-xs text-gray-400 mt-1">Il y a {{alert.time}}</p>
+                    <span *ngIf="!alert.isRead" class="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+                  </div>
+                </div>
+              </div>
+              <ng-template #noAlerts>
+                <div class="text-center py-6">
+                  <i class="ri-notification-line text-gray-400 text-2xl mb-2"></i>
+                  <p class="text-gray-500 text-sm">Aucune alerte</p>
+                </div>
+              </ng-template>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="bg-white rounded-xl shadow-sm">
+            <div class="p-6 border-b border-gray-200">
+              <h2 class="text-lg font-semibold text-gray-900">Actions rapides</h2>
+            </div>
+            <div class="p-6">
+              <div class="space-y-3">
+                <button (click)="navigateToSearch()" 
+                        class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors w-full text-left">
+                  <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <i class="ri-search-line text-blue-600 text-sm"></i>
+                  </div>
+                  <span class="text-sm font-medium text-gray-900">Nouvelle recherche</span>
+                </button>
+                
+                <button (click)="navigateToCompare()" 
+                        [disabled]="!canPerformAction('compare')"
+                        class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors w-full text-left disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <i class="ri-contrast-line text-green-600 text-sm"></i>
+                  </div>
+                  <span class="text-sm font-medium text-gray-900">
+                    {{canPerformAction('compare') ? 'Comparer joueurs' : 'Comparaison indisponible'}}
+                  </span>
+                </button>
+                
+                <button (click)="openExportModal()" 
+                        [disabled]="!canPerformAction('export') || !canPerformServerAction()"
+                        class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors w-full text-left disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <i class="ri-download-line text-purple-600 text-sm"></i>
+                  </div>
+                  <span class="text-sm font-medium text-gray-900">
+                    {{canPerformAction('export') && canPerformServerAction() ? 'Exporter rapport' : 'Export indisponible'}}
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div *ngIf="showExportModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">Exporter le rapport</h3>
+          <button (click)="closeExportModal()" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors">
+            <i class="ri-close-line text-gray-600"></i>
+          </button>
+        </div>
+
+        <div class="space-y-4 mb-6">
+          <p class="text-gray-600 text-sm">
+            Choisissez le format de votre rapport de tableau de bord
+          </p>
+
+          <div class="space-y-2">
+            <label class="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input type="radio" name="exportFormat" value="pdf" [(ngModel)]="exportFormat" class="text-blue-600"/>
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                  <i class="ri-file-pdf-line text-red-600"></i>
+                </div>
+                <div>
+                  <div class="font-medium text-gray-900">PDF</div>
+                  <div class="text-xs text-gray-500">Rapport complet avec graphiques</div>
+                </div>
+              </div>
+            </label>
+
+            <label class="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+              <input type="radio" name="exportFormat" value="excel" [(ngModel)]="exportFormat" class="text-blue-600"/>
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                  <i class="ri-file-excel-line text-green-600"></i>
+                </div>
+                <div>
+                  <div class="font-medium text-gray-900">Excel/CSV</div>
+                  <div class="text-xs text-gray-500">Données tabulaires pour analyse</div>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <button (click)="closeExportModal()" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+            Annuler
+          </button>
+          <button (click)="handleExportReport()" 
+                  [disabled]="isExporting" 
+                  class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            <div *ngIf="isExporting" class="flex items-center justify-center gap-2">
+              <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Export...
+            </div>
+            <span *ngIf="!isExporting">Exporter</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

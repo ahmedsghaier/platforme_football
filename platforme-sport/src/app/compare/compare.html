@@ -1,0 +1,458 @@
+<div class="min-h-screen bg-gray-50">
+  <!-- Header -->
+  <header class="bg-white shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div 
+          class="text-2xl font-bold text-blue-600 cursor-pointer" 
+          style="font-family: 'Pacifico', serif"
+          (click)="navigateTo('/')"
+        >
+          FootballAI
+        </div>
+        <nav class="flex items-center space-x-6">
+          <span 
+            class="text-gray-600 hover:text-blue-600 transition-colors cursor-pointer"
+            (click)="navigateTo('/search')"
+          >
+            Recherche
+          </span>
+          <span 
+            class="text-blue-600 font-medium cursor-pointer"
+            (click)="navigateTo('/compare')"
+          >
+            Comparateur
+          </span>
+          <span 
+            class="text-gray-600 hover:text-blue-600 transition-colors cursor-pointer"
+            (click)="navigateTo('/dashboard')"
+          >
+            Tableau de bord
+          </span>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 mb-4">Comparateur de joueurs</h1>
+      <p class="text-gray-600">Comparez jusqu'à 3 joueurs simultanément avec des analyses détaillées</p>
+    </div>
+
+    <!-- Search Input -->
+    <div *ngIf="selectedPlayers.length < 3" class="bg-white rounded-xl shadow-sm p-6 mb-8">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">Ajouter un joueur à comparer</h2>
+      <input
+        type="text"
+        [formControl]="searchControl"
+        placeholder="Rechercher un joueur..."
+        class="w-full p-2 border rounded mb-4"
+      />
+      <!-- Search Results -->
+      <div *ngIf="searchResults.length > 0" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <button
+          *ngFor="let player of searchResults"
+          (click)="addPlayer(player)"
+          class="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer"
+        >
+          <div class="text-center">
+            <div class="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-2 flex items-center justify-center">
+              <i class="ri-user-line text-gray-500 text-xl"></i>
+            </div>
+            <h3 class="font-medium text-gray-900 text-sm">{{ player.name }}</h3>
+            <p class="text-xs text-gray-500">{{ player.clubName || (player.club?.name || 'Sans club') }}</p>
+          </div>
+        </button>
+      </div>
+      <!-- Available Players (Fallback) -->
+      <div *ngIf="searchResults.length === 0 && !isLoading" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <button
+          *ngFor="let player of availablePlayers"
+          (click)="addPlayer(player)"
+          class="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer"
+        >
+          <div class="text-center">
+            <div class="w-12 h-12 bg-gray-200 rounded-full mx-auto mb-2 flex items-center justify-center">
+              <i class="ri-user-line text-gray-500 text-xl"></i>
+            </div>
+            <h3 class="font-medium text-gray-900 text-sm">{{ player.name }}</h3>
+            <p class="text-xs text-gray-500">{{ player.clubName || (player.club?.name || 'Sans club') }}</p>
+          </div>
+        </button>
+      </div>
+      <div *ngIf="searchResults.length === 0 && isLoading" class="text-center text-gray-500">Chargement des joueurs...</div>
+    </div>
+    <div *ngIf="selectedPlayers.length >= 3" class="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-yellow-800">
+      Limite de 3 joueurs atteinte. Supprimez un joueur pour en ajouter un autre.
+    </div>
+
+    <!-- Comparison Grid (Statistiques clés par poste) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8" *ngIf="selectedPlayers.length > 0">
+      <div 
+        *ngFor="let player of selectedPlayers; let i = index" 
+        class="bg-white rounded-xl shadow-sm overflow-hidden"
+      >
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 relative">
+          <button
+            (click)="removePlayer(player.id)"
+            class="absolute top-4 right-4 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors cursor-pointer"
+          >
+            <i class="ri-close-line text-white"></i>
+          </button>
+          <div class="text-center">
+            <div class="w-20 h-20 bg-white/20 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <i class="ri-user-line text-white text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-1">{{ player.name }}</h3>
+            <p class="text-blue-100">{{ player.clubName || (player.club?.name || 'Sans club') }} • {{ player.position }}</p>
+            <div class="text-2xl font-bold mt-3">{{ player.marketValue }}</div>
+          </div>
+        </div>
+
+        <div class="p-6">
+          <h4 class="font-semibold text-gray-900 mb-4">Statistiques clés</h4>
+          <div class="space-y-3">
+            <!-- Statistiques de base communes -->
+            <div class="flex justify-between items-center" *ngIf="player.comparisonStats">
+              <span class="text-sm text-gray-600">Buts</span>
+              <span class="font-semibold">{{ player.comparisonStats.goals || 0 }}</span>
+            </div>
+            <div class="flex justify-between items-center" *ngIf="player.comparisonStats">
+              <span class="text-sm text-gray-600">Passes décisives</span>
+              <span class="font-semibold">{{ player.comparisonStats.assists || 0 }}</span>
+            </div>
+
+            <!-- Statistiques spécifiques par poste -->
+            <ng-container [ngSwitch]="player.position.toUpperCase()" *ngIf="player.comparisonStats">
+              <div *ngSwitchCase="'ATTAQUANT'">
+                <div *ngIf="player.comparisonStats.shots" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Tirs</span>
+                  <span class="font-semibold">{{ player.comparisonStats.shots }}</span>
+                </div>
+                <div *ngIf="player.comparisonStats.keyPasses" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Passes clés</span>
+                  <span class="font-semibold">{{ player.comparisonStats.keyPasses }}</span>
+                </div>
+                <div *ngIf="player.comparisonStats.conversionRate" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Taux de conversion</span>
+                  <span class="font-semibold">{{ player.comparisonStats.conversionRate }}</span>
+                </div>
+              </div>
+              <div *ngSwitchCase="'MILIEU'">
+                <div *ngIf="player.comparisonStats.passesReussies" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Passes réussies</span>
+                  <span class="font-semibold">{{ player.comparisonStats.passesReussies }}</span>
+                </div>
+                <div *ngIf="player.comparisonStats.recuperations" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Récupérations</span>
+                  <span class="font-semibold">{{ player.comparisonStats.recuperations }}</span>
+                </div>
+                <div *ngIf="player.comparisonStats.distanceParcourue" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Distance parcourue</span>
+                  <span class="font-semibold">{{ player.comparisonStats.distanceParcourue }} km</span>
+                </div>
+              </div>
+              <div *ngSwitchCase="'DÉFENSEUR'">
+                <div *ngIf="player.comparisonStats.tackles" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Tacles</span>
+                  <span class="font-semibold">{{ player.comparisonStats.tackles }}</span>
+                </div>
+                <div *ngIf="player.comparisonStats.taclesReussis" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Tacles réussis</span>
+                  <span class="font-semibold">{{ player.comparisonStats.taclesReussis }}</span>
+                </div>
+                <div *ngIf="player.comparisonStats.interceptions" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Interceptions</span>
+                  <span class="font-semibold">{{ player.comparisonStats.interceptions }}</span>
+                </div>
+                <div *ngIf="player.comparisonStats.duelsAeriens" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Duels aériens</span>
+                  <span class="font-semibold">{{ player.comparisonStats.duelsAeriens }}</span>
+                </div>
+                <div *ngIf="player.comparisonStats.tackleSuccessRate" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">% Tacles réussis</span>
+                  <span class="font-semibold">{{ player.comparisonStats.tackleSuccessRate }}</span>
+                </div>
+              </div>
+              <div *ngSwitchCase="'GARDIEN'">
+                <div *ngIf="player.comparisonStats.saves" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Arrêts</span>
+                  <span class="font-semibold">{{ player.comparisonStats.saves }}</span>
+                </div>
+                <div *ngIf="player.comparisonStats.cleanSheets" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Clean sheets</span>
+                  <span class="font-semibold">{{ player.comparisonStats.cleanSheets }}</span>
+                </div>
+                <div *ngIf="player.comparisonStats.savePercentage" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">% Arrêts</span>
+                  <span class="font-semibold">{{ player.comparisonStats.savePercentage }}</span>
+                </div>
+                <div *ngIf="player.comparisonStats.penaltiesSaved" class="flex justify-between items-center">
+                  <span class="text-sm text-gray-600">Pénaltys arrêtés</span>
+                  <span class="font-semibold">{{ player.comparisonStats.penaltiesSaved }}</span>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div *ngIf="selectedPlayers.length === 0" class="text-center text-gray-500 py-8">
+      Aucun joueur sélectionné. Commencez par en ajouter un !
+    </div>
+
+    <!-- Comparison Charts (Analyse comparative par poste) -->
+    <div *ngIf="selectedPlayers.length >= 2" class="bg-white rounded-xl shadow-sm p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-900 mb-6">Analyse comparative</h2>
+
+      <!-- Stats Comparison -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div>
+          <h3 class="font-medium text-gray-900 mb-4">Buts et Passes décisives</h3>
+          <div class="space-y-4">
+         <ng-container *ngFor="let player of selectedPlayers">
+  <div *ngIf="player.comparisonStats">
+    <div class="flex justify-between items-center mb-2">
+      <span class="text-sm font-medium text-gray-700">{{ player.name }}</span>
+      <span class="text-sm text-gray-500">{{ getTotalGoalsAssists(player) }} G+A</span>
+    </div>
+    <div class="flex gap-1">
+      <div 
+        class="bg-green-500 h-3 rounded-l"
+        [style.width.%]="getStatWidth(player.comparisonStats.goals, 35)"
+        [title]="(player.comparisonStats.goals || 0) + ' buts'"
+      ></div>
+      <div 
+        class="bg-blue-500 h-3 rounded-r"
+        [style.width.%]="getStatWidth(player.comparisonStats.assists, 25)"
+        [title]="(player.comparisonStats.assists || 0) + ' passes'"
+      ></div>
+    </div>
+  </div>
+</ng-container>
+
+          </div>
+          <div class="flex items-center gap-4 mt-4 text-xs text-gray-500">
+            <div class="flex items-center gap-1">
+              <div class="w-3 h-3 bg-green-500 rounded"></div>
+              <span>Buts</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <div class="w-3 h-3 bg-blue-500 rounded"></div>
+              <span>Passes décisives</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="font-medium text-gray-900 mb-4">Capacités techniques par poste</h3>
+          <div class="space-y-6">
+            <ng-container *ngFor="let player of selectedPlayers">
+  <ng-container *ngIf="player.comparisonStats">
+    <h4 class="font-semibold text-gray-700 mb-2">{{ player.name }} ({{ player.position }})</h4>
+    <div class="space-y-2">
+      <ng-container [ngSwitch]="player.position.toUpperCase()">
+
+        <!-- ATTAQUANT -->
+        <div *ngSwitchCase="'ATTAQUANT'">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-sm font-medium text-gray-700">Tirs</span>
+            <span class="text-sm text-gray-500">{{ player.comparisonStats.shots || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-20 truncate">Tirs</span>
+            <div class="flex-1 bg-gray-200 rounded-full h-2">
+              <div class="h-2 rounded-full bg-blue-500" [style.width.%]="getStatWidth(player.comparisonStats.shots, 50)"></div>
+            </div>
+            <span class="text-xs font-medium w-10">{{ player.comparisonStats.shots || 0 }}</span>
+          </div>
+
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-sm font-medium text-gray-700">Passes clés</span>
+            <span class="text-sm text-gray-500">{{ player.comparisonStats.keyPasses || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-20 truncate">Passes clés</span>
+            <div class="flex-1 bg-gray-200 rounded-full h-2">
+              <div class="h-2 rounded-full bg-green-500" [style.width.%]="getStatWidth(player.comparisonStats.keyPasses, 50)"></div>
+            </div>
+            <span class="text-xs font-medium w-10">{{ player.comparisonStats.keyPasses || 0 }}</span>
+          </div>
+        </div>
+
+        <!-- MILIEU -->
+        <div *ngSwitchCase="'MILIEU'">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-sm font-medium text-gray-700">Passes réussies</span>
+            <span class="text-sm text-gray-500">{{ player.comparisonStats.passesReussies || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-20 truncate">Passes réussies</span>
+            <div class="flex-1 bg-gray-200 rounded-full h-2">
+              <div class="h-2 rounded-full bg-blue-500" [style.width.%]="getStatWidth(player.comparisonStats.passesReussies, 1000)"></div>
+            </div>
+            <span class="text-xs font-medium w-10">{{ player.comparisonStats.passesReussies || 0 }}</span>
+          </div>
+
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-sm font-medium text-gray-700">Récupérations</span>
+            <span class="text-sm text-gray-500">{{ player.comparisonStats.recuperations || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-20 truncate">Récupérations</span>
+            <div class="flex-1 bg-gray-200 rounded-full h-2">
+              <div class="h-2 rounded-full bg-green-500" [style.width.%]="getStatWidth(player.comparisonStats.recuperations, 100)"></div>
+            </div>
+            <span class="text-xs font-medium w-10">{{ player.comparisonStats.recuperations || 0 }}</span>
+          </div>
+        </div>
+
+        <!-- DÉFENSEUR -->
+        <div *ngSwitchCase="'DÉFENSEUR'">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-sm font-medium text-gray-700">Tacles</span>
+            <span class="text-sm text-gray-500">{{ player.comparisonStats.tackles || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-20 truncate">Tacles</span>
+            <div class="flex-1 bg-gray-200 rounded-full h-2">
+              <div class="h-2 rounded-full bg-blue-500" [style.width.%]="getStatWidth(player.comparisonStats.tackles, 100)"></div>
+            </div>
+            <span class="text-xs font-medium w-10">{{ player.comparisonStats.tackles || 0 }}</span>
+          </div>
+
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-sm font-medium text-gray-700">Interceptions</span>
+            <span class="text-sm text-gray-500">{{ player.comparisonStats.interceptions || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-20 truncate">Interceptions</span>
+            <div class="flex-1 bg-gray-200 rounded-full h-2">
+              <div class="h-2 rounded-full bg-green-500" [style.width.%]="getStatWidth(player.comparisonStats.interceptions, 100)"></div>
+            </div>
+            <span class="text-xs font-medium w-10">{{ player.comparisonStats.interceptions || 0 }}</span>
+          </div>
+        </div>
+
+        <!-- GARDIEN -->
+        <div *ngSwitchCase="'GARDIEN'">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-sm font-medium text-gray-700">Arrêts</span>
+            <span class="text-sm text-gray-500">{{ player.comparisonStats.saves || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-20 truncate">Arrêts</span>
+            <div class="flex-1 bg-gray-200 rounded-full h-2">
+              <div class="h-2 rounded-full bg-blue-500" [style.width.%]="getStatWidth(player.comparisonStats.saves, 50)"></div>
+            </div>
+            <span class="text-xs font-medium w-10">{{ player.comparisonStats.saves || 0 }}</span>
+          </div>
+
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-sm font-medium text-gray-700">Clean sheets</span>
+            <span class="text-sm text-gray-500">{{ player.comparisonStats.cleanSheets || 0 }}</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-20 truncate">Clean sheets</span>
+            <div class="flex-1 bg-gray-200 rounded-full h-2">
+              <div class="h-2 rounded-full bg-green-500" [style.width.%]="getStatWidth(player.comparisonStats.cleanSheets, 20)"></div>
+            </div>
+            <span class="text-xs font-medium w-10">{{ player.comparisonStats.cleanSheets || 0 }}</span>
+          </div>
+        </div>
+
+      </ng-container>
+    </div>
+  </ng-container>
+</ng-container>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Existing Comparisons -->
+    <div *ngIf="comparisons.length > 0" class="bg-white rounded-xl shadow-sm p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-900 mb-4">Comparaisons existantes</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div
+          *ngFor="let comparison of comparisons"
+          class="p-4 border border-gray-200 rounded-lg hover:border-blue-500 cursor-pointer"
+          (click)="loadComparison(comparison.id)"
+        >
+          <h3 class="font-medium text-gray-900">{{ comparison.comparisonName }}</h3>
+          <p class="text-sm text-gray-500">Créée le: {{ comparison.createdAt | date:'short' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div *ngIf="selectedPlayers.length > 0" class="bg-white rounded-xl shadow-sm p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <button
+          (click)="createComparison()"
+          [disabled]="selectedPlayers.length < 2"
+          class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <i class="ri-save-line"></i>
+          Créer Comparaison
+        </button>
+        <button
+          (click)="handleExportPDF()"
+          [disabled]="selectedPlayers.length < 2 || isExportingPDF"
+          class="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ng-container *ngIf="isExportingPDF; else pdfIcon">
+            <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            Generating PDF...
+          </ng-container>
+          <ng-template #pdfIcon>
+            <i class="ri-file-pdf-line"></i>
+            Exporter en PDF
+          </ng-template>
+        </button>
+        <button
+          (click)="handleExportExcel()"
+          [disabled]="selectedPlayers.length < 2"
+          class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer whitespace-nowrap"
+        >
+          <i class="ri-file-excel-line"></i>
+          Exporter en Excel
+        </button>
+        <button
+          (click)="handleShareAnalysis()"
+          [disabled]="selectedPlayers.length < 2"
+          class="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors cursor-pointer whitespace-nowrap"
+        >
+          <i class="ri-share-line"></i>
+          Partager l'analyse
+        </button>
+      </div>
+
+      <!-- Success Message for Comparison Creation -->
+      <div *ngIf="showExportSuccess || (comparisons.length > 0 && selectedPlayers.length === 0)" class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div class="flex items-center gap-2 text-green-800">
+          <i class="ri-check-line"></i>
+          <span class="text-sm font-medium">
+            {{ showExportSuccess ? 'PDF export completed successfully!' : 'Comparaison créée avec succès!' }}
+          </span>
+        </div>
+      </div>
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+        <div class="flex items-center gap-2 text-red-800">
+          <i class="ri-error-warning-line"></i>
+          <span class="text-sm font-medium">{{ errorMessage }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div *ngIf="isLoading" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+    <div class="text-white text-xl">Chargement...</div>
+  </div>
+</div>

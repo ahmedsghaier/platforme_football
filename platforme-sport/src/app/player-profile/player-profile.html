@@ -1,0 +1,282 @@
+<div class="min-h-screen bg-gray-50" *ngIf="!loading && !error && player; else loadingOrError">
+  <!-- Header -->
+  <header class="bg-white shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <a routerLink="/" class="text-2xl font-bold text-blue-600 cursor-pointer" style="font-family: 'Pacifico', serif">
+          FootballAI
+        </a>
+        <nav class="flex items-center space-x-6">
+          <a routerLink="/search" class="text-gray-600 hover:text-blue-600 transition-colors cursor-pointer">Recherche</a>
+          <a routerLink="/compare" class="text-gray-600 hover:text-blue-600 transition-colors cursor-pointer">Comparateur</a>
+          <a routerLink="/dashboard" class="text-gray-600 hover:text-blue-600 transition-colors cursor-pointer">Tableau de bord</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Player Header -->
+    <div class="bg-white rounded-xl shadow-sm p-8 mb-8">
+      <div class="flex flex-col lg:flex-row gap-8">
+        <div class="flex-shrink-0">
+          <img 
+            [src]="player.image || 'https://fbref.com/req/202302030/images/headshots/a1d5bd30_2022.jpg'" 
+            [alt]="player.name || 'Joueur inconnu'"
+            class="w-64 h-80 object-cover object-top rounded-xl shadow-lg"
+            (error)="onImageError($event)"
+          />
+        </div>
+        <div class="flex-1">
+          <div class="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-6">
+            <div>
+              <h1 class="text-4xl font-bold text-gray-900 mb-2">{{ player.name || 'Nom inconnu' }}</h1>
+              <div class="flex flex-wrap gap-4 text-gray-600 mb-4">
+                <span class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full" *ngIf="player.age">
+                  📅 {{ player.age }} ans
+                </span>
+                <span class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full" *ngIf="player.nationality">
+                  🏳️ {{ player.nationality }}
+                </span>
+                <span class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full" *ngIf="player.clubName  ">
+                  👥 {{ player.clubName   }}
+                </span>
+                <span class="flex items-center gap-2 bg-blue-100 px-3 py-1 rounded-full text-blue-800" *ngIf="player.position">
+                  ⚽ {{ getPositionLabel(player.position) }}
+                </span>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-3xl font-bold text-green-600 mb-1">{{convertToMillions(player.marketValueNumeric) || 'N/A' }}</div>
+              <div class="text-gray-500">Confiance IA: {{ player.confidence || 'N/A' }}</div>
+            </div>
+          </div>
+
+          <!-- Value Chart -->
+          <div class="bg-gray-50 rounded-lg p-6" *ngIf="player.valueHistory && player.valueHistory.length > 0">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Évolution de la valeur (6 derniers mois)</h3>
+            <div class="flex items-end justify-between h-32">
+              <div 
+                *ngFor="let point of player.valueHistory; let i = index" 
+                class="flex flex-col items-center flex-1"
+              >
+                <div 
+                  class="bg-blue-600 rounded-t w-8 mb-2 transition-all duration-300 hover:bg-blue-700"
+                  [style.height.%]="(point.value ) * 100 | number:'1.0-0'"
+                  [title]="point.month + ': ' + point.value + 'M€'"
+                ></div>
+                <span class="text-xs text-gray-600">{{ point.month }}</span>
+                <span class="text-xs font-semibold text-gray-900">{{ point.value }}M€</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white rounded-xl shadow-sm mb-8">
+      <div class="border-b border-gray-200">
+        <nav class="flex space-x-8 px-8">
+          <button
+            *ngFor="let tab of [
+              { id: 'stats', label: 'Statistiques', icon: '📊' },
+              { id: 'performance', label: 'Performance', icon: '📈' },
+              { id: 'comparison', label: 'Comparaison', icon: '⚖️' }
+            ]"
+            (click)="setActiveTab(tab.id)"
+            [class]="'flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap cursor-pointer transition-colors ' + 
+                    (activeTab === tab.id ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300')"
+          >
+            {{ tab.icon }} {{ tab.label }}
+          </button>
+        </nav>
+      </div>
+
+      <div class="p-8">
+        <!-- Stats Tab -->
+        <div *ngIf="activeTab === 'stats'" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          <div 
+            *ngFor="let stat of getStatsByPosition()"
+            class="bg-white border-2 border-gray-100 rounded-lg p-6 hover:shadow-md transition-shadow duration-200"
+            [ngClass]="'hover:border-' + stat.color + '-200'"
+          >
+            <div class="flex items-center justify-between">
+              <div>
+                <p [ngClass]="'text-' + stat.color + '-600 text-sm font-medium mb-1'">{{ stat.label }}</p>
+                <p [ngClass]="'text-2xl font-bold text-' + stat.color + '-900'">{{ stat.value }}</p>
+              </div>
+              <div [ngClass]="'w-12 h-12 bg-' + stat.color + '-100 rounded-lg flex items-center justify-center'">
+                <span [ngClass]="'text-' + stat.color + '-600 text-xl'">{{ stat.icon }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Performance Tab -->
+        <div *ngIf="activeTab === 'performance'" class="space-y-6">
+          <div class="bg-gray-50 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-6">Analyse de performance IA</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div *ngFor="let metric of getPerformanceMetrics()" class="space-y-2">
+                <div class="flex justify-between items-center">
+                  <span class="text-sm font-medium text-gray-600">{{ metric.label }}</span>
+                  <span class="text-sm font-bold text-gray-900">{{ metric.value }}/{{ metric.max }}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                  <div 
+                    [ngClass]="metric.value >= 90 ? 'bg-green-500' : metric.value >= 80 ? 'bg-blue-500' : 'bg-yellow-500'"
+                    class="h-3 rounded-full transition-all duration-500" 
+                    [style.width.%]="metric.value"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-blue-50 rounded-lg p-6 border-l-4 border-blue-500">
+            <h4 class="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+              🤖 Recommendation IA
+            </h4>
+            <p class="text-blue-800 leading-relaxed">{{ getAIRecommendation() }}</p>
+          </div>
+
+          <!-- Graphique radar pour les performances (placeholder) -->
+          <div class="bg-white rounded-lg p-6 border-2 border-gray-100" *ngIf="player.position?.toUpperCase() === 'DF' || player.position?.toUpperCase() === 'DEFENSEUR'">
+            <h4 class="font-semibold text-gray-900 mb-4">Profil défensif</h4>
+            <div class="text-center py-8">
+              <div class="text-4xl text-gray-400 mb-4">📊</div>
+              <p class="text-gray-500">Graphique radar des compétences défensives</p>
+              <p class="text-sm text-gray-400 mt-2">Tacles • Interceptions • Duels aériens • Positionnement</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comparison Tab -->
+        <div *ngIf="activeTab === 'comparison'" class="text-center py-12">
+          <span class="text-6xl text-gray-400 mb-6 block animate-pulse">⚖️</span>
+          <h3 class="text-2xl font-semibold text-gray-900 mb-4">Comparaison avec d'autres joueurs</h3>
+          <p class="text-gray-600 mb-8 max-w-2xl mx-auto">
+            Sélectionnez d'autres joueurs pour les comparer avec <strong>{{ player.name }}</strong> 
+            et analyser leurs performances, statistiques et valeurs marchandes.
+          </p>
+          <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <a routerLink="/compare" 
+               class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors cursor-pointer inline-flex items-center gap-2">
+              <span>🔍</span>
+              Ouvrir le comparateur
+            </a>
+            <button 
+              (click)="setActiveTab('stats')"
+              class="bg-gray-100 text-gray-700 px-8 py-3 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer inline-flex items-center gap-2">
+              <span>📊</span>
+              Voir les statistiques
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Additional Info Cards for Defenders -->
+    <div *ngIf="player.position?.toUpperCase() === 'DF' || player.position?.toUpperCase() === 'DEFENSEUR'" 
+         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      
+      <!-- Defensive Actions Card -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          🛡️ Actions défensives
+        </h3>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Tacles par match</span>
+            <span class="font-semibold">{{ ((player.stats?.['tackles'] || 0) / 30) | number:'1.1-1' }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Interceptions par match</span>
+            <span class="font-semibold">{{ ((player.stats?.['interceptions'] || 0) / 30) | number:'1.1-1' }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Duels aériens gagnés</span>
+            <span class="font-semibold">{{ player.stats?.['aerialSuccessRate'] || '0%' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Discipline Card -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          📋 Discipline
+        </h3>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Cartons jaunes</span>
+            <span class="font-semibold text-yellow-600">{{ player.stats?.['cartonsJaunes'] || 0 }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Cartons rouges</span>
+            <span class="font-semibold text-red-600">{{ player.stats?.['cartonsRouge'] || 0 }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Fautes par match</span>
+            <span class="font-semibold">{{ generateRandomStat() | number:'1.1-1' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clean Sheets Card -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          🥅 Solidité défensive
+        </h3>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Clean sheets</span>
+            <span class="font-semibold text-green-600">{{ player.stats?.['cleanSheets'] || 0 }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Réussite tacles</span>
+            <span class="font-semibold">{{ player.stats?.['tackleSuccessRate'] || '0%' }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-gray-600">Minutes/match</span>
+            <span class="font-semibold">{{ ((player.stats?.['minutesPlayed'] || 0) / 30) | number:'1.0-0' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading State -->
+<div *ngIf="loading" class="flex justify-center items-center min-h-screen bg-gray-50">
+  <div class="text-center">
+    <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+    <p class="text-gray-600">Chargement du profil du joueur...</p>
+  </div>
+</div>
+
+<!-- Loading or Error State -->
+<ng-template #loadingOrError>
+  <div *ngIf="error" class="flex justify-center items-center min-h-screen bg-gray-50">
+    <div class="text-center max-w-md mx-auto p-8">
+      <div class="text-6xl text-red-500 mb-4">❌</div>
+      <h2 class="text-2xl font-bold text-red-600 mb-4">Erreur</h2>
+      <p class="text-gray-600 mb-6">{{ error }}</p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <button 
+          (click)="navigateToHome()" 
+          class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+          🏠 Retour à l'accueil
+        </button>
+        <button 
+          (click)="goBack()"
+          class="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors">
+          ← Retour
+        </button>
+      </div>
+    </div>
+  </div>
+  <div *ngIf="!error && !player" class="flex justify-center items-center min-h-screen bg-gray-50">
+    <p class="text-gray-600">Aucun joueur chargé.</p>
+  </div>
+</ng-template>

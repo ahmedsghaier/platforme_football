@@ -1,0 +1,37 @@
+/* Import des classes Tailwind CSS */
+
+/* Import de la police Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+
+/* Import des icônes RemixIcon */
+@import url('https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css');
+
+/* Styles personnalisés si nécessaire */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Transition pour les effets hover */
+.transition-shadow {
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.transition-colors {
+  transition: color 0.2s ease-in-out;
+}
+
+/* Focus states pour l'accessibilité */
+input:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+/* Styles pour les états hover des cartes */
+.hover\:shadow-md:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Styles pour les lignes du tableau */
+tbody tr:hover {
+  background-color: #f9fafb;
+}

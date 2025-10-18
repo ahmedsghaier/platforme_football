@@ -1,0 +1,79 @@
+animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.duration-200 {
+  transition-duration: 200ms;
+}
+
+.duration-300 {
+  transition-duration: 300ms;
+}
+
+.duration-500 {
+  transition-duration: 500ms;
+}
+
+/* Couleurs personnalisées pour les statistiques */
+.text-green-600 { color: #059669; }
+.text-blue-600 { color: #2563eb; }
+.text-purple-600 { color: #9333ea; }
+.text-orange-600 { color: #ea580c; }
+.text-red-600 { color: #dc2626; }
+.text-gray-600 { color: #4b5563; }
+.text-yellow-600 { color: #d97706; }
+.text-cyan-600 { color: #0891b2; }
+.text-teal-600 { color: #0d9488; }
+.text-indigo-600 { color: #4f46e5; }
+.text-pink-600 { color: #db2777; }
+
+.bg-green-100 { background-color: #dcfce7; }
+.bg-blue-100 { background-color: #dbeafe; }
+.bg-purple-100 { background-color: #f3e8ff; }
+.bg-orange-100 { background-color: #fed7aa; }
+.bg-red-100 { background-color: #fee2e2; }
+.bg-gray-100 { background-color: #f3f4f6; }
+.bg-yellow-100 { background-color: #fef3c7; }
+.bg-cyan-100 { background-color: #cffafe; }
+.bg-teal-100 { background-color: #ccfbf1; }
+.bg-indigo-100 { background-color: #e0e7ff; }
+.bg-pink-100 { background-color: #fce7f3; }
+
+.border-green-200 { border-color: #bbf7d0; }
+.border-blue-200 { border-color: #bfdbfe; }
+.border-purple-200 { border-color: #e9d5ff; }
+.border-orange-200 { border-color: #fed7aa; }
+.border-red-200 { border-color: #fecaca; }
+.border-gray-200 { border-color: #e5e7eb; }
+.border-yellow-200 { border-color: #fde68a; }
+.border-cyan-200 { border-color: #a5f3fc; }
+.border-teal-200 { border-color: #99f6e4; }
+.border-indigo-200 { border-color: #c7d2fe; }
+.border-pink-200 { border-color: #fbcfe8; }
+
+.hover\:border-green-200:hover { border-color: #bbf7d0; }
+.hover\:border-blue-200:hover { border-color: #bfdbfe; }
+.hover\:border-purple-200:hover { border-color: #e9d5ff; }
+.hover\:border-orange-200:hover { border-color: #fed7aa; }
+.hover\:border-red-200:hover { border-color: #fecaca; }
+.hover\:border-gray-200:hover { border-color: #e5e7eb; }
+.hover\:border-yellow-200:hover { border-color: #fde68a; }
+.hover\:border-cyan-200:hover { border-color: #a5f3fc; }
+.hover\:border-teal-200:hover { border-color: #99f6e4; }
+.hover\:border-indigo-200:hover { border-color: #c7d2fe; }
+.hover\:border-pink-200:hover { border-color: #fbcfe8; }
